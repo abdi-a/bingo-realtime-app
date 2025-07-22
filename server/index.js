@@ -46,7 +46,7 @@ function startDrawing() {
 }
 
 io.on('connection', (socket) => {
-  // Send full history and winner to new client
+ 
   socket.emit('init', { drawnNumbers, firstWinner });
 
   socket.on('bingo-win', (name) => {
