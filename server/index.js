@@ -1,44 +1,40 @@
-let winners = [];
+const express = require("express");
+const http = require("http");
+const cors = require("cors");
+const { Server } = require("socket.io");
 
-io.on("connection", (socket) => {
-  console.log("🔌 New client connected:", socket.id);
-  socket.emit("history", drawnNumbers);
-  socket.emit("winner-list", winners);
+const app = express();
+const server = http.createServer(app);
 
-  socket.on("send-name", (name) => {
-    socket.data.name = name;
-    console.log(`👤 ${name} joined`);
-  });
+// ✅ Enable CORS for ALL routes including /restart
+app.use(cors({
+  origin: "http://localhost:5173", // Your frontend (Vite) origin
+  methods: ["GET", "POST"],
+  credentials: true               // optional, only if using cookies/auth
+}));
 
-  socket.on("declare-winner", () => {
-    const winnerName = socket.data.name || "Unknown";
-    if (!winners.includes(winnerName)) {
-      winners.push(winnerName);
-      io.emit("winner-list", winners);
-      console.log(`🏆 Winner: ${winnerName}`);
-    }
-  });
+app.use(express.json());
 
-  if (!interval) {
-    interval = setInterval(() => {
-      const number = generateNumber();
-      if (number) {
-        io.emit("number-drawn", number);
-        console.log("🎯 Number:", number);
-      } else {
-        clearInterval(interval);
-        interval = null;
-        io.emit("game-over");
-      }
-    }, 5000);
+// ✅ Sample restart route
+app.get("/restart", (req, res) => {
+  console.log("🔄 Game restarted");
+  res.json({ message: "Game restarted successfully" });
+});
+
+// ✅ Socket.IO config
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"],
   }
 });
 
-app.get("/restart", (req, res) => {
-  drawnNumbers = [];
-  winners = [];
-  if (interval) clearInterval(interval);
-  interval = null;
-  io.emit("game-restart");
-  res.send("Game restarted");
+// ✅ Socket event
+io.on("connection", (socket) => {
+  console.log("🔌 Client connected:", socket.id);
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
