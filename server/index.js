@@ -1,46 +1,24 @@
-const express = require("express");
-const http = require("http");
-const cors = require("cors");
-const { Server } = require("socket.io");
-
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "http://localhost:5173", 
-    methods: ["GET", "POST"]
-  }
-});
-
-app.use(cors());
-
-let drawnNumbers = [];
-let interval = null;
-
-function generateNumber() {
-  if (drawnNumbers.length >= 75) return null;
-
-  let num;
-  do {
-    num = Math.floor(Math.random() * 75) + 1;
-  } while (drawnNumbers.includes(num));
-
-  drawnNumbers.push(num);
-  return num;
-}
+let winners = [];
 
 io.on("connection", (socket) => {
   console.log("🔌 New client connected:", socket.id);
-
-  // Send history to new user
   socket.emit("history", drawnNumbers);
+  socket.emit("winner-list", winners);
 
-  // Send name (optional)
   socket.on("send-name", (name) => {
+    socket.data.name = name;
     console.log(`👤 ${name} joined`);
   });
 
-  // Start emitting if not already started
+  socket.on("declare-winner", () => {
+    const winnerName = socket.data.name || "Unknown";
+    if (!winners.includes(winnerName)) {
+      winners.push(winnerName);
+      io.emit("winner-list", winners);
+      console.log(`🏆 Winner: ${winnerName}`);
+    }
+  });
+
   if (!interval) {
     interval = setInterval(() => {
       const number = generateNumber();
@@ -58,12 +36,9 @@ io.on("connection", (socket) => {
 
 app.get("/restart", (req, res) => {
   drawnNumbers = [];
+  winners = [];
   if (interval) clearInterval(interval);
   interval = null;
   io.emit("game-restart");
   res.send("Game restarted");
-});
-
-server.listen(3000, () => {
-  console.log("🚀 Server running on http://localhost:3000");
 });

@@ -26,4 +26,23 @@
 .winner {
   margin-top: 20px;
   color: #f50057;
+  font-size: 24px;
+}
+.restart {
+  margin-top: 20px;
+  padding: 10px 20px;
+  font-size: 18px;
+  background: #f57c00;
+  border: none;
+  color: white;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.center {
+  text-align: center;
+  margin-top: 100px;
+}
+.center input {
+  padding: 10px;
+  font-size: 16px;
 }
