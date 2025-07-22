@@ -1,4 +1,5 @@
+import { io } from 'socket.io-client';
 
-import { io } from "socket.io-client";
-export const socket = io("https://bingo-realtime-app.onrender.com");
+const socket = io('http://localhost:4000');
 
+export default socket; 

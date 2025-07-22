@@ -1,65 +1,71 @@
-import express from "express";
-import http from "http";
-import { Server } from "socket.io";
-import cors from "cors";
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const cors = require('cors');
+
 
 const app = express();
+app.use(cors());
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "*", // Allow frontend domain in production
-    methods: ["GET", "POST"]
+    origin: '*',
+    methods: ['GET', 'POST']
   }
 });
 
-app.use(cors());
+const PORT = 4000;
+const BINGO_MIN = 1;
+const BINGO_MAX = 75;
+const BINGO_INTERVAL_MS = 5000;
+let drawnNumbers = [];
+let interval = null;
+let firstWinner = null;
 
-let drawnNumbers = new Set();
-let intervalId = null;
-
-function startDrawingNumbers() {
-  if (intervalId) return; // prevent multiple intervals
-
-  intervalId = setInterval(() => {
-    if (drawnNumbers.size >= 75) {
-      clearInterval(intervalId);
-      return;
-    }
-
-    let num;
-    do {
-      num = Math.floor(Math.random() * 75) + 1;
-    } while (drawnNumbers.has(num));
-
-    drawnNumbers.add(num);
-    console.log("Number drawn:", num);
-
-    io.emit("number-drawn", num);
-  }, 5000); // Every 5 seconds
+function getRandomNumber() {
+  const available = [];
+  for (let i = BINGO_MIN; i <= BINGO_MAX; i++) {
+    if (!drawnNumbers.includes(i)) available.push(i);
+  }
+  if (available.length === 0) return null;
+  const idx = Math.floor(Math.random() * available.length);
+  return available[idx];
 }
 
-io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
+function startDrawing() {
+  if (interval) clearInterval(interval);
+  interval = setInterval(() => {
+    const number = getRandomNumber();
+    if (number === null) {
+      clearInterval(interval);
+      return;
+    }
+    drawnNumbers.push(number);
+    io.emit('number-drawn', { number, drawnNumbers });
+  }, BINGO_INTERVAL_MS);
+}
 
-  // Send already drawn numbers
-  socket.emit("previous-numbers", Array.from(drawnNumbers));
+io.on('connection', (socket) => {
+  // Send full history and winner to new client
+  socket.emit('init', { drawnNumbers, firstWinner });
+
+  socket.on('bingo-win', (name) => {
+    if (!firstWinner) {
+      firstWinner = name;
+      io.emit('winner', name);
+    }
+  });
 });
 
-// Optional restart route
-app.get("/restart", (req, res) => {
-  drawnNumbers.clear();
-  clearInterval(intervalId);
-  intervalId = null;
-  startDrawingNumbers();
-  io.emit("game-restarted");
-  res.send("Game restarted");
+app.post('/restart', (req, res) => {
+  drawnNumbers = [];
+  firstWinner = null;
+  startDrawing();
+  io.emit('restart');
+  res.json({ success: true });
 });
 
-// Start drawing immediately
-startDrawingNumbers();
-
-// Start server
-const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-});
+  startDrawing();
+}); 
