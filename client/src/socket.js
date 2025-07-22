@@ -1,5 +1,11 @@
+// client/src/socket.js
 import { io } from 'socket.io-client';
 
-const socket = io('https://bingo-realtime-app-1.onrender.com');
+const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
-export default socket; 
+const socket = io(BACKEND_URL, {
+  transports: ['websocket'], // ensures real-time connection
+});
+
+export default socket;
